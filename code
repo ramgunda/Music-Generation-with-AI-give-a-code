@@ -1,0 +1,45 @@
+# First, install the required libraries:
+# pip install magenta
+
+import magenta.music as mm
+from magenta.models.melody_rnn import melody_rnn_model
+from magenta.models.melody_rnn import melody_rnn_sequence_generator
+from magenta.protobuf import generator_pb2
+from magenta.protobuf import music_pb2
+import tensorflow as tf
+
+# Set up the model
+melody_rnn = melody_rnn_model.MelodyRnnModel(
+    model_name='basic_rnn',
+    hparams=melody_rnn_model.MelodyRnnModel.default_hparams(),
+    checkpoint='path/to/checkpoint', # Specify the path to the model checkpoint
+    steps_per_quarter=4
+)
+
+# Initialize the sequence generator
+generator = melody_rnn_sequence_generator.MelodyRnnSequenceGenerator(
+    model=melody_rnn,
+    details=melody_rnn_model.MelodyRnnModel.get_details(),
+    steps_per_quarter=4,
+    checkpoint='path/to/checkpoint' # Specify the path to the model checkpoint
+)
+
+# Define the generator options
+generator_options = generator_pb2.GeneratorOptions()
+generator_options.args['temperature'].float_value = 1.0
+# Set the end time for the generated sequence
+generate_section = generator_options.generate_sections.add()
+generate_section.start_time_seconds = 0
+generate_section.end_time_seconds = 10  # Generate 10 seconds of music
+
+# Create a primer melody (starting melody)
+primer_melody = music_pb2.NoteSequence()
+primer_melody.tempos.add(qpm=120)
+
+# Generate the sequence
+sequence = generator.generate(primer_melody, generator_options)
+
+# Save the generated sequence to a MIDI file
+mm.sequence_proto_to_midi_file(sequence, 'output.mid')
+
+print("Music generated and saved to output.mid")
